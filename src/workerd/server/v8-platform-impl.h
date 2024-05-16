@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <workerd/jsg/setup.h>
+#include <kj/common.h>
 #include <v8-platform.h>
 
 namespace workerd::server {
