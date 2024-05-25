@@ -5,6 +5,7 @@
 #include "blob.h"
 #include "streams.h"
 #include "util.h"
+#include <workerd/io/observer.h>
 #include <workerd/util/mimetype.h>
 
 namespace workerd::api {
@@ -90,6 +91,11 @@ jsg::Ref<Blob> Blob::constructor(jsg::Optional<Bits> bits, jsg::Optional<Options
   return jsg::alloc<Blob>(concat(kj::mv(bits)), kj::mv(type));
 }
 
+kj::ArrayPtr<const byte> Blob::getData() const {
+  FeatureObserver::maybeRecordUse(FeatureObserver::Feature::BLOB_GET_DATA);
+  return data;
+}
+
 jsg::Ref<Blob> Blob::slice(jsg::Optional<int> maybeStart, jsg::Optional<int> maybeEnd,
                             jsg::Optional<kj::String> type) {
   int start = maybeStart.orDefault(0);
@@ -123,9 +129,11 @@ jsg::Ref<Blob> Blob::slice(jsg::Optional<int> maybeStart, jsg::Optional<int> may
 
 jsg::Promise<kj::Array<kj::byte>> Blob::arrayBuffer(jsg::Lock& js) {
   // TODO(perf): Find a way to avoid the copy.
+  FeatureObserver::maybeRecordUse(FeatureObserver::Feature::BLOB_AS_ARRAY_BUFFER);
   return js.resolvedPromise(kj::heapArray<byte>(data));
 }
 jsg::Promise<kj::String> Blob::text(jsg::Lock& js) {
+  FeatureObserver::maybeRecordUse(FeatureObserver::Feature::BLOB_AS_TEXT);
   return js.resolvedPromise(kj::str(data.asChars()));
 }
 
@@ -185,6 +193,7 @@ private:
 };
 
 jsg::Ref<ReadableStream> Blob::stream() {
+  FeatureObserver::maybeRecordUse(FeatureObserver::Feature::BLOB_AS_STREAM);
   return jsg::alloc<ReadableStream>(
       IoContext::current(),
       kj::heap<BlobInputStream>(JSG_THIS));

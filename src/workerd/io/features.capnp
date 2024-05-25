@@ -10,4 +10,12 @@ $Cxx.allowCancellation;
 
 enum Features {
   test @0;
+
+  # We want to determine how users typically read the data from a Blob.
+  # The reason is so that we can determine how best to optimize the Blob
+  # implementation.
+  blobAsArrayBuffer @1;
+  blobAsText @2;
+  blobAsStream @3;
+  blobGetData @4;
 }
