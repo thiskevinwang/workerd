@@ -248,7 +248,7 @@ private:
   Observer& ref;
 };
 
-// Provides counters/observers for various features. The intent it to
+// Provides counters/observers for various features. The intent is to
 // make it possible to collect metrics on which runtime features are
 // used and how often.
 //
