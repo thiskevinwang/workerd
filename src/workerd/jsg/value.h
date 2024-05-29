@@ -14,6 +14,7 @@
 #include <kj/time.h>
 #include <kj/debug.h>
 #include <kj/one-of.h>
+#include <workerd/util/autogate.h>
 
 namespace workerd::jsg {
 
@@ -1292,6 +1293,33 @@ public:
     auto& js = Lock::from(context->GetIsolate());
     auto& wrapper = TypeWrapper::from(js.v8Isolate);
     kj::Exception result = [&]() {
+
+      kj::Exception::Type excType = kj::Exception::Type::FAILED;
+      // Use .retryable and .overloaded properties as hints for what kj exception type to use.
+      if (util::Autogate::isEnabled(util::AutogateKey::ACTOR_EXCEPTION_PROPERTIES)) {
+        if (handle->IsObject()) {
+          auto object = handle.As<v8::Object>();
+
+          KJ_IF_SOME(retryable, wrapper.tryUnwrap(
+              context,
+              check(object->Get(context, v8StrIntern(js.v8Isolate, "retryable"_kj))),
+              (bool*)nullptr, object)) {
+            if (retryable) {
+              excType = kj::Exception::Type::DISCONNECTED;
+            }
+          }
+
+          KJ_IF_SOME(overloaded, wrapper.tryUnwrap(
+              context,
+              check(object->Get(context, v8StrIntern(js.v8Isolate, "overloaded"_kj))),
+              (bool*)nullptr, object)) {
+            if (overloaded) {
+              excType = kj::Exception::Type::OVERLOADED;
+            }
+          }
+        }
+      }
+
       KJ_IF_SOME(domException, wrapper.tryUnwrap(context, handle,
                                                   (DOMException*)nullptr,
                                                   parentObject)) {
@@ -1336,8 +1364,7 @@ public:
             reason = kj::str(JSG_EXCEPTION(Error) ": ", reason);
           }
         }
-        return kj::Exception(kj::Exception::Type::FAILED, __FILE__, __LINE__,
-                            kj::mv(reason));
+        return kj::Exception(excType, __FILE__, __LINE__, kj::mv(reason));
       }
     }();
 
